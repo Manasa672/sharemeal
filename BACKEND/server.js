@@ -30,9 +30,13 @@ app.get('/api/health', (req, res) => {
 
 const authRoutes = require('./routes/auth');
 const locationRoutes = require('./routes/location');
+const donationRoutes = require('./routes/donation');
+const requestRoutes = require('./routes/request');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/location', locationRoutes);
+app.use('/api/donation', donationRoutes);
+app.use('/api/request', requestRoutes);
 
 // TODO: Add API routes here
 

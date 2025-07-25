@@ -776,41 +776,45 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/js/all.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Check if user is logged in
-            const currentUser = JSON.parse(localStorage.getItem('currentDonationUser'));
-            if (!currentUser || currentUser.role !== 'donor') {
-                window.location.href = 'index.html';
-                return;
+document.addEventListener('DOMContentLoaded', async function() {
+    // Check if user is logged in
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+    if (!currentUser || currentUser.role !== 'donor') {
+        window.location.href = 'index.html';
+        return;
+    }
+
+    // Initialize user info
+    document.getElementById('usernameDisplay').textContent = currentUser.username;
+    document.getElementById('userAvatar').textContent = currentUser.username.charAt(0).toUpperCase();
+
+    // Load and display user location from backend
+    async function loadUserLocation() {
+        const locationDisplay = document.getElementById('userLocationDisplay');
+        try {
+            const res = await fetch(`http://localhost:5000/api/location/${currentUser.username}`);
+            if (res.ok) {
+                const userLocation = await res.json();
+                locationDisplay.innerHTML = `
+                    <p><strong>Address:</strong> ${userLocation.display_name}</p>
+                    ${userLocation.lat && userLocation.lon ? 
+                        `<p><strong>Coordinates:</strong> ${parseFloat(userLocation.lat).toFixed(6)}, ${parseFloat(userLocation.lon).toFixed(6)}</p>` : ''}
+                `;
+            } else {
+                locationDisplay.innerHTML = 'Location not set yet. <a href="location.html" style="color: #04b3ed; text-decoration: none;">Set your location</a>';
             }
+        } catch {
+            locationDisplay.innerHTML = 'Location not set yet. <a href="location.html" style="color: #04b3ed; text-decoration: none;">Set your location</a>';
+        }
+    }
 
-            // Initialize user info
-            document.getElementById('usernameDisplay').textContent = currentUser.username;
-            document.getElementById('userAvatar').textContent = currentUser.username.charAt(0).toUpperCase();
+    // Change location button
+    document.getElementById('changeLocationBtn').addEventListener('click', function() {
+        window.location.href = 'location.html';
+    });
 
-            // Load and display user location
-            function loadUserLocation() {
-                const userLocation = JSON.parse(localStorage.getItem(`userLocation_${currentUser.username}`));
-                const locationDisplay = document.getElementById('userLocationDisplay');
-                
-                if (userLocation && userLocation.display_name) {
-                    locationDisplay.innerHTML = `
-                        <p><strong>Address:</strong> ${userLocation.display_name}</p>
-                        ${userLocation.lat && userLocation.lon ? 
-                            `<p><strong>Coordinates:</strong> ${parseFloat(userLocation.lat).toFixed(6)}, ${parseFloat(userLocation.lon).toFixed(6)}</p>` : ''}
-                    `;
-                } else {
-                    locationDisplay.innerHTML = 'Location not set yet. <a href="location.html" style="color: #04b3ed; text-decoration: none;">Set your location</a>';
-                }
-            }
-
-            // Change location button
-            document.getElementById('changeLocationBtn').addEventListener('click', function() {
-                window.location.href = 'location.html';
-            });
-
-            // Call the function when the page loads
-            loadUserLocation();
+    // Call the function when the page loads
+    await loadUserLocation();
 
             // Slider functionality
             const slides = document.querySelectorAll('.slide');
@@ -863,8 +867,8 @@
             });
 
             // Load stats (mock data - replace with actual data from your backend)
-            function loadStats() {
-                const donations = JSON.parse(localStorage.getItem('foodDonations')) || [];
+          async function loadStats() {
+                const donations = await getDonations();
                 const userDonations = donations.filter(d => d.donor === currentUser.username);
                 const claimedDonations = userDonations.filter(d => d.status === 'claimed').length;
                 const expiredDonations = userDonations.filter(d => d.status === 'expired').length;
@@ -879,13 +883,14 @@
             // Logout button
             document.getElementById('logoutBtn').addEventListener('click', function(e) {
                 e.preventDefault();
-                localStorage.removeItem('currentDonationUser');
+                sessionStorage.removeItem('jwtToken');
+                sessionStorage.removeItem('currentUser');
                 window.location.href = 'index.html';
             });
 
             // Initialize donations if not exists
-            if (!localStorage.getItem('foodDonations')) {
-                localStorage.setItem('foodDonations', JSON.stringify([]));
+            if (!getDonations()) {
+                sessionStorage.setItem('foodDonations', JSON.stringify([]));
             }
 
             // Load donations and stats
@@ -893,11 +898,11 @@
             loadStats();
 
             // Donation form submission
-            document.getElementById('donationForm').addEventListener('submit', function(e) {
+            document.getElementById('donationForm').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 
-                // Get user's current location
-                const userLocation = JSON.parse(localStorage.getItem(`userLocation_${currentUser.username}`));
+                // Get user's current location from backend
+                const userLocation = await loadUserLocation(); // This will now fetch from backend
                 
                 // Validate location
                 if (!userLocation || (!userLocation.lat && !userLocation.display_name)) {
@@ -939,9 +944,9 @@
                     requests: []
                 };
 
-                const donations = JSON.parse(localStorage.getItem('foodDonations'));
+                const donations = JSON.parse(getDonations());
                 donations.push(newDonation);
-                localStorage.setItem('foodDonations', JSON.stringify(donations));
+                sessionStorage.setItem('foodDonations', JSON.stringify(donations));
 
                 // Reset form
                 this.reset();
@@ -957,8 +962,8 @@
                 loadStats();
             });
 
-            function loadDonations() {
-                const donations = JSON.parse(localStorage.getItem('foodDonations')) || [];
+            async function loadDonations() {
+                const donations = await getDonations();
                 const now = new Date();
                 
                 // Process donations - mark expired ones
@@ -972,8 +977,7 @@
                     return donation;
                 });
                 
-                // Save back if any changes
-                localStorage.setItem('foodDonations', JSON.stringify(processedDonations));
+              
                 
                 // Filter donations to show
                 const userDonations = processedDonations.filter(d => 
@@ -1074,9 +1078,9 @@
                     btn.addEventListener('click', function() {
                         if (confirm('Are you sure you want to delete this donation?')) {
                             const donationId = this.getAttribute('data-id');
-                            const donations = JSON.parse(localStorage.getItem('foodDonations'));
+                            const donations = JSON.parse(getDonations());
                             const updatedDonations = donations.filter(d => d.id !== donationId);
-                            localStorage.setItem('foodDonations', JSON.stringify(updatedDonations));
+                            sessionStorage.setItem('foodDonations', JSON.stringify(updatedDonations));
                             loadDonations();
                             loadStats();
                         }
@@ -1107,8 +1111,8 @@
                 });
             }
 
-            function loadHistory() {
-                const donations = JSON.parse(localStorage.getItem('foodDonations')) || [];
+            async function loadHistory() {
+                const donations = await getDonations();
                 const userDonations = donations.filter(d => 
                     d.donor === currentUser.username && 
                     (d.status === 'claimed' || d.status === 'expired')
@@ -1161,7 +1165,7 @@
             }
 
             function updateRequestStatus(donationId, action) {
-                const donations = JSON.parse(localStorage.getItem('foodDonations'));
+                const donations = JSON.parse(getDonations());
                 const donationIndex = donations.findIndex(d => d.id === donationId);
                 
                 if (donationIndex !== -1) {
@@ -1177,20 +1181,20 @@
                         // Update timestamp
                         donations[donationIndex].updatedAt = new Date().toISOString();
                         
-                        localStorage.setItem('foodDonations', JSON.stringify(donations));
+                        sessionStorage.setItem('foodDonations', JSON.stringify(donations));
                         alert('Request accepted! The receiver will come to collect the food.');
                         loadDonations();
                     } else {
                         // When declining, reset the donation to available and clear requests
                         donations[donationIndex].status = 'available';
                         donations[donationIndex].requests = [];
-                        localStorage.setItem('foodDonations', JSON.stringify(donations));
+                        sessionStorage.setItem('foodDonations', JSON.stringify(donations));
                         
                         // Also update NGO requests if this was an NGO request
-                        if (localStorage.getItem('ngoRequests')) {
-                            const ngoRequests = JSON.parse(localStorage.getItem('ngoRequests'));
+                        if (sessionStorage.getItem('ngoRequests')) {
+                            const ngoRequests = JSON.parse(sessionStorage.getItem('ngoRequests'));
                             const updatedNgoRequests = ngoRequests.filter(r => r.donationId !== donationId);
-                            localStorage.setItem('ngoRequests', JSON.stringify(updatedNgoRequests));
+                            sessionStorage.setItem('ngoRequests', JSON.stringify(updatedNgoRequests));
                         }
                         
                         alert('Request declined. The donation is now available again.');
@@ -1201,7 +1205,7 @@
 
             // Add cleanup function that runs periodically
             function cleanupExpiredDonations() {
-                const donations = JSON.parse(localStorage.getItem('foodDonations')) || [];
+                const donations = JSON.parse(getDonations()) || [];
                 const now = new Date();
                 
                 const updatedDonations = donations.map(donation => {
@@ -1214,7 +1218,7 @@
                     return donation;
                 });
                 
-                localStorage.setItem('foodDonations', JSON.stringify(updatedDonations));
+                sessionStorage.setItem('foodDonations', JSON.stringify(updatedDonations));
             }
 
             // Run cleanup every minute
@@ -1341,7 +1345,7 @@
                     })
                     .catch(() => { loadingIndicator.style.display = 'none'; });
             });
-            // Optionally, you can add a save button to update localStorage if needed
+
         });
     </script>
 </body>
