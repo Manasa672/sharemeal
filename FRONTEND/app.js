@@ -25,26 +25,16 @@ roleButtons.forEach(button => {
 
 // Initialize data structures when page loads
 document.addEventListener('DOMContentLoaded', function() {
-  // Initialize users array if not exists
-  if (!localStorage.getItem('donationUsers')) {
-    localStorage.setItem('donationUsers', JSON.stringify([]));
-  }
-  
-  // Initialize food donations if not exists
-  if (!localStorage.getItem('foodDonations')) {
-    localStorage.setItem('foodDonations', JSON.stringify([]));
-  }
-  
-  // Initialize food requests if not exists
-  if (!localStorage.getItem('foodRequests')) {
-    localStorage.setItem('foodRequests', JSON.stringify([]));
-  }
+  // Remove localStorage initialization for users, donations, requests
+  // Remove all localStorage.setItem/getItem for donationUsers, foodDonations, foodRequests
+  // On registration and login, store only the JWT token and user info in memory (or sessionStorage if needed)
+  // Use fetch API to interact with /api/donation and /api/request endpoints for all donation/request CRUD
+  // Example for registration and login:
 });
 
 const API_BASE = 'http://localhost:5000';
 
-// Sign Up Functionality
-// Replace localStorage registration with backend API call
+
 
 document.querySelector(".sign-up-form").addEventListener("submit", async function(e) {
   e.preventDefault();
@@ -83,7 +73,9 @@ document.querySelector(".sign-up-form").addEventListener("submit", async functio
         alert('Registration failed: No token received from server.');
         return;
       }
-      localStorage.setItem("currentDonationUser", JSON.stringify(user));
+      // On successful registration/login:
+      
+      // window.currentDonationUser = user; // or sessionStorage.setItem('currentDonationUser', JSON.stringify(user));
       alert("Account created successfully! Please set your location.");
       window.location.href = "location.html";
     } else {
@@ -126,7 +118,14 @@ document.querySelector(".sign-in-form").addEventListener("submit", async functio
         alert('Login failed: No token received from server.');
         return;
       }
-      localStorage.setItem("currentDonationUser", JSON.stringify(user));
+      // On successful registration/login:
+      sessionStorage.setItem('jwtToken', user.token);
+      sessionStorage.setItem('currentUser', JSON.stringify({
+        username: user.username,
+        email: user.email,
+        role: user.role
+      }));
+      // window.currentDonationUser = user; // or sessionStorage.setItem('currentDonationUser', JSON.stringify(user));
       // Check if user has location set (required for all users)
       const locRes = await fetch(`${API_BASE}/api/location/${user.username}`);
       if (!locRes.ok) {
@@ -172,3 +171,99 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+// Create Donation
+async function createDonation(donationData) {
+  const token = sessionStorage.getItem('jwtToken');
+  const res = await fetch(`${API_BASE}/api/donation`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify(donationData)
+  });
+  return res.json();
+}
+
+// Get Donations
+async function getDonations() {
+  const token = sessionStorage.getItem('jwtToken');
+  const res = await fetch(`${API_BASE}/api/donation`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  return res.json();
+}
+
+// Update Donation
+async function updateDonation(id, updateData) {
+  const token = sessionStorage.getItem('jwtToken');
+  const res = await fetch(`${API_BASE}/api/donation/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify(updateData)
+  });
+  return res.json();
+}
+
+// Delete Donation
+async function deleteDonation(id) {
+  const token = sessionStorage.getItem('jwtToken');
+  const res = await fetch(`${API_BASE}/api/donation/${id}`, {
+    method: "DELETE",
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  return res.json();
+}
+
+
+// Create Request
+async function createRequest(requestData) {
+  const token = sessionStorage.getItem('jwtToken');
+  const res = await fetch(`${API_BASE}/api/request`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify(requestData)
+  });
+  return res.json();
+}
+
+// Get Requests
+async function getRequests() {
+  const token = sessionStorage.getItem('jwtToken');
+  const res = await fetch(`${API_BASE}/api/request`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  return res.json();
+}
+
+// Update Request
+async function updateRequest(id, updateData) {
+  const token = sessionStorage.getItem('jwtToken');
+  const res = await fetch(`${API_BASE}/api/request/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify(updateData)
+  });
+  return res.json();
+}
+
+// Delete Request
+async function deleteRequest(id) {
+  const token = sessionStorage.getItem('jwtToken');
+  const res = await fetch(`${API_BASE}/api/request/${id}`, {
+    method: "DELETE",
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  return res.json();
+}
+
+//
